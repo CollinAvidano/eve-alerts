@@ -1,0 +1,11 @@
+aiohttp
+asyncio
+configparser
+datetime
+discord
+geopy
+pandas
+pytile 
+pytz
+smtplibaio
+websockets
