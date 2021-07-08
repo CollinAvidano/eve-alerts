@@ -154,7 +154,9 @@ class alert_server:
 
         self.alertmodules = [rare_ship_hunter_module(), character_hunter_module()]
 
-        self.time_last_recieved = datetime.datetime.now(pytz.utc)
+        self.killmail_timeout=60.0
+        self.ping_timeout=60.0
+        self.sleep_time=1.0
  
         loop = asyncio.get_event_loop()
         loop.set_debug(True)
@@ -168,26 +170,35 @@ class alert_server:
             "action": "sub",
             "channel": "killstream"
         }
-        log_debug("Opening Socket")
-        try:
-            websocket = await asyncio.wait_for(websockets.connect(websocket_url), 10)
-            log_debug("Sending Subscription Request")
-            await websocket.send(json.dumps(message, indent = 4))
-
-            log_debug("Handling Loop Start")
-            async for message in websocket:
-                await self.consume_message(message)
-                    
-        except:
-            log_error("Error. Will Try Reconnecting")
-            return
+        while True:
+            try:
+                log_debug("Opening Socket")
+                async with websockets.connect(websocket_url) as websocket:
+                    log_debug("Sending Subscription Request")
+                    await websocket.send(json.dumps(message, indent = 4))
+                    while True:
+                        # listener loop
+                        try:
+                            reply = await asyncio.wait_for(websocket.recv(), timeout=self.killmail_timeout)
+                        except (asyncio.TimeoutError, websockets.exceptions.ConnectionClosed):
+                            try:
+                                pong = await websocket.ping()
+                                await asyncio.wait_for(pong, timeout=self.ping_timeout)
+                                log_debug('Ping OK, keeping connection alive...')
+                                continue
+                            except:
+                                await asyncio.sleep(self.sleep_time)
+                                break
+                        await self.consume_message(reply)
+            except Exception as e:
+                log_error("Error: " + str(e) + " Will Try Reconnecting")
+                continue
 
     async def consume_message(self, message):
         json_message = json.loads(message)
-        self.time_last_recieved = datetime.datetime.now(pytz.utc)
         killmail_time = parse(json_message['killmail_time'])
         log_info('killmail received')
-        if self.time_last_recieved-datetime.timedelta(hours=1) < killmail_time:
+        if datetime.datetime.now(pytz.utc)-datetime.timedelta(hours=1) < killmail_time:
             for module in alert_modules:
                 module.check(killmail)
 
