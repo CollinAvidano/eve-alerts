@@ -3,6 +3,7 @@ from discord import Webhook, AsyncWebhookAdapter
 from email.message import EmailMessage
 from smtplibaio import SMTP, SMTP_SSL
 
+import os
 import aiohttp
 import asyncio
 import configparser
@@ -28,23 +29,23 @@ def log_error(string):
     logging.error(string)
     print(string)
 
-async def send_emails(sender, recipients, subject, content, server, port, password)
-        # Build the EmailMessage object
-        message = EmailMessage()
-        message.add_header("From", str(sender))
-        message.add_header("To", str(recipients)
-        message.add_header("Subject", subject)
-        message.add_header("Content-type", "text/plain", charset="utf-8")
-        message.set_content(content)
+async def send_emails(sender, recipients, subject, content, server, port, password):
+    # Build the EmailMessage object
+    message = EmailMessage()
+    message.add_header("From", str(sender))
+    message.add_header("To", str(recipients))
+    message.add_header("Subject", subject)
+    message.add_header("Content-type", "text/plain", charset="utf-8")
+    message.set_content(content)
 
-        # Send the e-mail:
-        context = ssl.create_default_context()
-        async with SMTP_SSL(hostname=server, port=port, context=context) as client:
-            await client.ehlo()
-            await client.auth(sender, password)
-            await client.sendmail(sender, recipients, message.as_string())
+    # Send the e-mail:
+    context = ssl.create_default_context()
+    async with SMTP_SSL(hostname=server, port=port, context=context) as client:
+        await client.ehlo()
+        await client.auth(sender, password)
+        await client.sendmail(sender, recipients, message.as_string())
 
-async def send_discord(notification, webhook_url, username)
+async def send_discord(notification, webhook_url, username):
     async with aiohttp.ClientSession() as session:
         webhook = Webhook.from_url(webhook_url, adapter=AsyncWebhookAdapter(session))
         await webhook.send(notfication, username=username)
@@ -74,8 +75,7 @@ class rare_ship_hunter_module(alert_module):
                     if (self.ship_df['typeID'] == int(attacker['ship_type_id'])).any():
                         ship_id = int(attacker['ship_type_id'])
                         solar_system_id = int(json_message['solar_system_id'])
-                        character_id = str(attacker['character_id']))
-                        await self.send_discord(int(attacker['ship_type_id']), int(json_message['solar_system_id']), str(attacker['character_id']))
+                        character_id = str(attacker['character_id'])
 
                         system_name = self.system_df[self.system_df['solarSystemID'] == solar_system_id].iloc[0, 1]
                         ship_name = self.ship_df[self.ship_df['typeID'] == ship_id].iloc[0, 1]
@@ -103,7 +103,7 @@ class character_hunter_module(alert_module):
         self.system_df = pd.DataFrame(pd.read_csv(r'sdes/mapSolarSystems.csv'), columns= ['solarSystemID','solarSystemName'])
         self.character_df = pd.DataFrame(pd.read_csv(r'sdes/characters.csv'), columns= ['typeID','typeName'])
 
-    async def check(self.json_message)
+    async def check(self, json_message):
         if 'attackers' in json_message:
             for attacker in json_message['attackers']:
                 if 'character_id' in attacker:
@@ -149,7 +149,7 @@ class alert_server:
         logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
                     datefmt='%m-%d %H:%M',
-                    filename='./logs/hunter.log',
+                    filename='./logs/server.log',
                     filemode='w')
 
         self.alertmodules = [rare_ship_hunter_module(), character_hunter_module()]
@@ -189,7 +189,7 @@ class alert_server:
         log_info('killmail received')
         if self.time_last_recieved-datetime.timedelta(hours=1) < killmail_time:
             for module in alert_modules:
-                module.check(killmail):
+                module.check(killmail)
 
 
 if __name__ == "__main__":
