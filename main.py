@@ -152,7 +152,7 @@ class alert_server:
                     filename='./logs/server.log',
                     filemode='w')
 
-        self.alertmodules = [rare_ship_hunter_module(), character_hunter_module()]
+        self.alert_modules = [rare_ship_hunter_module(), character_hunter_module()]
 
         self.killmail_timeout=60.0
         self.ping_timeout=60.0
@@ -199,8 +199,8 @@ class alert_server:
         killmail_time = parse(json_message['killmail_time'])
         log_info('killmail received')
         if datetime.datetime.now(pytz.utc)-datetime.timedelta(hours=1) < killmail_time:
-            for module in alert_modules:
-                module.check(killmail)
+            for module in self.alert_modules:
+                module.check(json_message)
 
 
 if __name__ == "__main__":
