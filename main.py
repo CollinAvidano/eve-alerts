@@ -48,7 +48,7 @@ async def send_emails(sender, recipients, subject, content, server, port, passwo
 async def send_discord(notification, webhook_url, username):
     async with aiohttp.ClientSession() as session:
         webhook = Webhook.from_url(webhook_url, adapter=AsyncWebhookAdapter(session))
-        await webhook.send(notfication, username=username)
+        await webhook.send(notification, username=username)
 
 class alert_module:
 
@@ -82,12 +82,13 @@ class rare_ship_hunter_module(alert_module):
                         notfication_message = "Spotted " + ship_name + " in system " + system_name
         
                         subject = notfication_message
-                        content = notfication_message + "\n https://evewho.com/character/" + character_id
+                        content = notfication_message + "\n https://evewho.com/character/" + character_id + " \nKillmail URL: \n" + json_message['zkb']['url']
                         log_info(notfication_message)
                         log_debug("Sending notifications for matching ship")
 
                         await send_emails(self.config['mail']['sender-email'], self.recipients, subject, content, self.config['mail']['server'], self.config['mail']['port'], self.config['mail']['sender-password'])
-                        await send_discord(content, self.config['discord']['webhook-url'], self.config['discord']['username'])
+                        for url in (self.config['discord']['webhook-urls']).split(','):
+                            await send_discord(content, url.strip() , self.config['discord']['username'])
 
                         return
 
@@ -101,7 +102,7 @@ class character_hunter_module(alert_module):
         self.recipients = self.config['mail']['recipients'].split(',')
 
         self.system_df = pd.DataFrame(pd.read_csv(r'sdes/mapSolarSystems.csv'), columns= ['solarSystemID','solarSystemName'])
-        self.character_df = pd.DataFrame(pd.read_csv(r'sdes/characters.csv'), columns= ['typeID','typeName'])
+        self.character_df = pd.DataFrame(pd.read_csv(r'sdes/characters.csv'))
 
     async def check(self, json_message):
         if 'attackers' in json_message:
@@ -119,10 +120,12 @@ class character_hunter_module(alert_module):
                         subject = notfication_message
                         content = notfication_message + \
                         "\n Ship type: https://zkillboard.com/ship/" + ship_id + \
-                        "\n https://evewho.com/character/" + character_id
+                        "\n https://evewho.com/character/" + character_id + \
+                        " \nKillmail URL: \n" + json_message['zkb']['url']
 
                         await send_emails(self.config['mail']['sender-email'], self.recipients, subject, content, self.config['mail']['server'], self.config['mail']['port'], self.config['mail']['sender-password'])
-                        await send_discord(content, self.config['discord']['webhook-url'], self.config['discord']['username'])
+                        for url in (self.config['discord']['webhook-urls']).split(','):
+                            await send_discord(content, url.strip() , self.config['discord']['username'])
 
 class alert_server:
  
@@ -200,7 +203,7 @@ class alert_server:
         log_info('killmail received')
         if datetime.datetime.now(pytz.utc)-datetime.timedelta(hours=1) < killmail_time:
             for module in self.alert_modules:
-                module.check(json_message)
+                await module.check(json_message)
 
 
 if __name__ == "__main__":
